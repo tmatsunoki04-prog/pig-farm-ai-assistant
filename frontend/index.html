@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>養豚現場相談AI - MVP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>養豚現場相談AI</h1>
+            <p class="subtitle">現場の悩みを短く整理します</p>
+        </header>
+
+        <main>
+            <!-- 入力エリア -->
+            <section class="input-section">
+                <form id="consult-form">
+                    <div class="form-group">
+                        <textarea 
+                            id="consult-text" 
+                            placeholder="最近下痢が多い、咳が増えた気がする、など気になることを入力してください" 
+                            rows="4"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group file-group">
+                        <label for="consult-image" class="file-btn">
+                            <span class="icon">📷</span> 写真を添付 (任意)
+                        </label>
+                        <input type="file" id="consult-image" accept="image/*" style="display: none;">
+                        <span id="file-name" class="file-name"></span>
+                    </div>
+
+                    <!-- 【プライバシー注意文要件の実装】 -->
+                    <div class="privacy-notice">
+                        <p>⚠️ 農場名や個人名、電話番号などは入力しないでください。</p>
+                        <p>⚠️ 帳票やラベルなど固有情報が写る写真は避けてください。</p>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="submit-btn" disabled>相談を送信する</button>
+                    
+                    <div class="disclaimer">
+                        ※このアプリは診断用ではありません。詳細判断は獣医師に相談してください。
+                    </div>
+                </form>
+            </section>
+
+            <!-- 状態表示エリア（ローディング・エラー） -->
+            <section id="status-area" class="hidden">
+                <div id="loading" class="hidden">
+                    <div class="spinner"></div>
+                    <p>AIが整理しています...</p>
+                </div>
+                <div id="error-message" class="error-box hidden">
+                    <p id="error-text">回答の取得に失敗しました。もう一度お試しください。</p>
+                    <button id="retry-btn">再試行</button>
+                </div>
+            </section>
+
+            <!-- 結果表示エリア -->
+            <section id="result-area" class="hidden">
+                <div class="result-card">
+                    <div class="result-header">
+                        <h2>回答結果</h2>
+                    </div>
+
+                    <!-- 緊急度バッジ -->
+                    <div class="urgency-badge" id="res-urgency"></div>
+
+                    <!-- 獣医相談アラート -->
+                    <div id="res-vet-alert" class="vet-alert hidden">
+                        <span class="icon">🚨</span>
+                        <p id="res-vet-msg"></p>
+                    </div>
+
+                    <!-- まずやること -->
+                    <div class="result-block">
+                        <h3>📌 まずやること</h3>
+                        <ul id="res-actions"></ul>
+                    </div>
+
+                    <!-- 理由 -->
+                    <div class="result-block">
+                        <h3>💡 理由</h3>
+                        <p id="res-reason"></p>
+                    </div>
+
+                    <!-- 追加情報 -->
+                    <details class="optional-info">
+                        <summary>追加で分かれば役立つ情報を見る</summary>
+                        <ul id="res-optional"></ul>
+                    </details>
+                    
+                    <!-- 再相談ボタン -->
+                    <button id="reset-btn" class="secondary-btn">別の相談をする</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
