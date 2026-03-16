@@ -105,34 +105,31 @@ module.exports = async (req, res) => {
         // 3. マスキング実行
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // 4. SDK初期化 (強制的に安定版 v1 を使用するように修正)
-        const ai = new GoogleGenAI({ 
-            apiKey: apiKey,
-            apiVersion: 'v1' 
-        });
+        // 4. SDK初期化 (ご指定の形式: GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }))
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         
-        // parts 配列の作成
+        // parts配列作成 (camelCase: inlineData / mimeType)
         const parts = [];
         if (fileBuffer) {
             parts.push({
-                inline_data: {
+                inlineData: {
                     data: fileBuffer.toString("base64"),
-                    mime_type: mimeType
+                    mimeType: mimeType
                 }
             });
         }
         parts.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
 
         try {
-            // 5. モデル呼び出し (安定版 v1 の gemini-1.5-flash を使用)
+            // 5. モデル呼び出し (gemini-2.5-flash / camelCase書式)
             const result = await ai.models.generateContent({
-                model: "gemini-1.5-flash",
+                model: "gemini-2.5-flash",
                 contents: [{ role: 'user', parts }],
                 config: {
-                    response_mime_type: "application/json",
-                    response_schema: responseSchema,
+                    responseMimeType: "application/json",
+                    responseSchema: responseSchema,
                     temperature: 0.2,
-                    system_instruction: "あなたは養豚現場の異変を分析するAIです。専門적かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
+                    systemInstruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
                 }
             });
 
@@ -140,10 +137,10 @@ module.exports = async (req, res) => {
             const aiText = result.text();
             const aiParsed = JSON.parse(aiText);
             
+            // raw_input を削除し、指定の構造を維持して返却
             const finalResponse = {
                 consultation_id: generateId(),
                 timestamp: new Date().toISOString(),
-                raw_input: rawInput,
                 privacy_mask_applied: isMasked,
                 ...aiParsed
             };
