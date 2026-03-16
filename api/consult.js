@@ -51,10 +51,10 @@ const responseSchema = {
  * Vercel Serverless Function エントリーポイント
  */
 module.exports = async (req, res) => {
-    // 1. APIキーの確認
+    // 1. APIキーの確認 (Vercel環境変数)
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。" } });
+        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。VercelのEnvironment Variablesを確認してください。" } });
     }
 
     if (req.method !== 'POST') {
@@ -98,14 +98,11 @@ module.exports = async (req, res) => {
         });
 
         const rawInput = fields.text || '';
-        if (!rawInput && !fileBuffer) {
-            return res.status(400).json({ error: { message: '入力内容が空です。' } });
-        }
-
+        
         // 3. マスキング実行
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // 4. SDK初期化 (ユーザー指定の書式: const ai = new GoogleGenAI({ apiKey }))
+        // 4. SDK初期化 (ご指定の書式)
         const ai = new GoogleGenAI({ apiKey: apiKey });
         
         // parts 配列の作成
@@ -121,10 +118,9 @@ module.exports = async (req, res) => {
         parts.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
 
         try {
-            // 5. モデル呼び出し (ユーザー指定：ai.models.generateContent)
-            // 第一候補：gemini-2.0-flash
+            // 5. モデル呼び出し (利用可能な安定モデル: gemini-1.5-flash)
             const result = await ai.models.generateContent({
-                model: "gemini-2.0-flash",
+                model: "gemini-1.5-flash",
                 contents: [{ role: 'user', parts }],
                 config: {
                     response_mime_type: "application/json",
@@ -149,7 +145,6 @@ module.exports = async (req, res) => {
             res.status(200).json(finalResponse);
 
         } catch (aiError) {
-            // エラー時もフロントに状況を伝える
             console.error("AI Generation Error:", aiError);
             res.status(500).json({ error: { message: `AI処理エラー: ${aiError.message}` } });
         }
