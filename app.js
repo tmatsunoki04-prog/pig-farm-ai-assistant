@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSubmitting = false;
 
     if (categoryGrid) {
-        // ... (省略されるが既存ロジック維持)
         categoryGrid.addEventListener('click', (e) => {
             const btn = e.target.closest('.category-item');
             if (!btn) return;
@@ -59,32 +58,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function validateForm() {
-        // 送信条件：文章入力が1文字でもあれば有効（カテゴリ・画像は任意）
         const hasText = textInput.value.trim().length > 0;
         submitBtn.disabled = !hasText || isSubmitting;
     }
 
+    // Reset results and go back to input
     resetBtn.addEventListener('click', resetApp);
-    retryBtn.addEventListener('click', submitConsultation);
+    
+    // When error occurs, retry leads back to submission
+    retryBtn.addEventListener('click', () => {
+        isSubmitting = false;
+        validateForm();
+        submitConsultation();
+    });
 
-    // Button click handling (explicitly trigger form submit)
+    // Explicitly handle button click as a secondary trigger
     submitBtn.addEventListener('click', (e) => {
+        console.log('Submit button clicked');
         if (!submitBtn.disabled && !isSubmitting) {
-            form.requestSubmit();
+            // requestSubmit triggers HTML5 validation (if any) and the submit event
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                // Fallback for older browsers
+                form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
         }
     });
 
-    // Form Submission (Centralized handling)
+    // Centralized form submission handler
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (isSubmitting || submitBtn.disabled) return;
+        console.log('Form submit event triggered');
+        if (isSubmitting || submitBtn.disabled) {
+            console.log('Submission blocked (isSubmitting or disabled)');
+            return;
+        }
         submitConsultation();
     });
 
     async function submitConsultation() {
         if (isSubmitting) return;
         isSubmitting = true;
-        validateForm(); // Disable button
+        validateForm(); // Disable button immediately
+        
+        console.log('Starting consultation submission...');
+        
         inputSection.classList.add('hidden');
         resultArea.classList.add('hidden');
         statusArea.classList.remove('hidden');
@@ -104,16 +123,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data.error?.message || `通信エラー (${res.status})`);
             }
-            renderResult(await res.json());
+            const data = await res.json();
+            renderResult(data);
         } catch (error) {
             console.error('API Error:', error);
+            isSubmitting = false;
             loadingUI.classList.add('hidden');
             errorUI.classList.remove('hidden');
             errorUI.querySelector('p').textContent = error.message;
+            validateForm(); // Re-enable if possible
         }
     }
 
     function renderResult(data) {
+        isSubmitting = false; // Submission complete
         statusArea.classList.add('hidden');
         resultArea.classList.remove('hidden');
 
@@ -131,10 +154,12 @@ document.addEventListener('DOMContentLoaded', () => {
         resActions.innerHTML = (data.action_items || []).map(i => `<li>${i}</li>`).join('');
         resReason.textContent = data.reason || '特になし';
         resOptional.innerHTML = (data.optional_questions || []).map(q => `<li>${q}</li>`).join('');
+        
         window.scrollTo(0, 0);
     }
 
     function resetApp() {
+        console.log('Resetting application state');
         isSubmitting = false;
         form.reset();
         currentImageFile = null;
