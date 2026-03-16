@@ -1,10 +1,37 @@
 const { GoogleGenAI } = require('@google/genai');
 const Busboy = require('busboy');
-const { maskText } = require('../lib/masking');
 
+/**
+ * 送信ID生成
+ */
 const generateId = () => `cons_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
 
+/**
+ * マスキングパターンの定義 (インライン化して外部参照トラブルを回避)
+ */
+const maskPatterns = [
+  { regex: /0\d{1,4}[-(]?\d{1,4}[-)]?\d{4}/g, replacement: '[TEL]' },
+  { regex: /[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\./g, replacement: '[EMAIL]' },
+  { regex: /(?:牧場|農場)の([ぁ-んァ-ヶ一-龠]{1,5})(?:です|より)/g, replacement: '牧場の[NAME]です' },
+  { regex: /お疲れ様です[。、\s]*([ぁ-んァ-ヶ一-龠]{1,5})です/g, replacement: '[挨拶省略]' }
+];
+
+function inlineMaskText(text) {
+  if (!text) return { maskedText: '', isMasked: false };
+  let maskedText = text;
+  let isMasked = false;
+  maskPatterns.forEach(({ regex, replacement }) => {
+    if (regex.test(maskedText)) {
+      isMasked = true;
+      maskedText = maskedText.replace(regex, replacement);
+    }
+  });
+  return { maskedText, isMasked };
+}
+
+/**
+ * AI応答用のスキーマ定義
+ */
 const responseSchema = {
     type: "OBJECT",
     properties: {
@@ -20,10 +47,19 @@ const responseSchema = {
     required: ["concern_category", "suspected_factors", "action_items", "urgency", "reason", "vet_consult_needed", "vet_consult_message", "optional_questions"]
 };
 
+/**
+ * Vercel Serverless Function エントリーポイント
+ */
 module.exports = async (req, res) => {
+    // 診断用: APIキーの有無を確認
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        console.error("CRITICAL: GEMINI_API_KEY is not set.");
+        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。Vercelの環境変数を確認してください。" } });
+    }
+
     if (req.method !== 'POST') {
-        res.status(405).json({ error: { message: 'Method Not Allowed' } });
-        return;
+        return res.status(405).json({ error: { message: 'Method Not Allowed' } });
     }
 
     try {
@@ -31,26 +67,43 @@ module.exports = async (req, res) => {
         const fields = {};
         let fileBuffer = null;
         let mimeType = '';
+        const filePromises = [];
 
+        // Busboyによるマルチパート解析 (Promise化)
         await new Promise((resolve, reject) => {
             busboy.on('file', (name, file, info) => {
                 mimeType = info.mimeType;
                 const chunks = [];
-                file.on('data', chunk => chunks.push(chunk));
-                file.on('end', () => { fileBuffer = Buffer.concat(chunks); });
+                const p = new Promise((resFile) => {
+                    file.on('data', chunk => chunks.push(chunk));
+                    file.on('end', () => {
+                        fileBuffer = Buffer.concat(chunks);
+                        resFile();
+                    });
+                });
+                filePromises.push(p);
             });
-            busboy.on('field', (name, val) => { fields[name] = val; });
-            busboy.on('finish', resolve);
+            busboy.on('field', (name, val) => {
+                fields[name] = val;
+            });
+            busboy.on('finish', async () => {
+                await Promise.all(filePromises);
+                resolve();
+            });
             busboy.on('error', reject);
             req.pipe(busboy);
         });
 
         const rawInput = fields.text || '';
         if (!rawInput && !fileBuffer) {
-            return res.status(400).json({ error: { message: '相談内容を入力するか写真を添付してください。' } });
+            return res.status(400).json({ error: { message: '入力内容が空です。' } });
         }
 
-        const { maskedText, isMasked } = maskText(rawInput);
+        // マスキング実行
+        const { maskedText, isMasked } = inlineMaskText(rawInput);
+
+        // Gemini設定
+        const genAI = new GoogleGenAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const contents = [];
@@ -59,26 +112,38 @@ module.exports = async (req, res) => {
         }
         contents.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
 
-        const result = await model.generateContent({
-            contents,
-            generationConfig: { responseMimeType: "application/json", responseSchema, temperature: 0.2 },
-            systemInstruction: "あなたは養豚現場の相談整理AIです。まずやることは1〜3項目。緊急度はhigh/medium/lowのいずれかで返してください。"
-        });
+        try {
+            console.log("Gemini API calling...");
+            const result = await model.generateContent({
+                contents,
+                generationConfig: { 
+                    responseMimeType: "application/json", 
+                    responseSchema, 
+                    temperature: 0.2 
+                },
+                systemInstruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
+            });
 
-        const aiParsed = JSON.parse(result.response.text());
-        const finalResponse = {
-            consultation_id: generateId(),
-            timestamp: new Date().toISOString(),
-            raw_input: rawInput,
-            privacy_mask_applied: isMasked,
-            ...aiParsed
-        };
+            const aiParsed = JSON.parse(result.response.text());
+            
+            const finalResponse = {
+                consultation_id: generateId(),
+                timestamp: new Date().toISOString(),
+                raw_input: rawInput,
+                privacy_mask_applied: isMasked,
+                ...aiParsed
+            };
 
-        console.log("CONSULT_LOG:", JSON.stringify({ ...finalResponse, raw_input: "[REDACTED]" }));
-        res.status(200).json(finalResponse);
+            console.log("Success:", finalResponse.consultation_id);
+            res.status(200).json(finalResponse);
 
-    } catch (error) {
-        console.error("API Error:", error);
-        res.status(500).json({ error: { message: 'サーバーエラーが発生しました。' } });
+        } catch (aiError) {
+            console.error("AI Error:", aiError);
+            res.status(500).json({ error: { message: `AI処理中にエラーが発生しました: ${aiError.message}` } });
+        }
+
+    } catch (topError) {
+        console.error("Critical Server Error:", topError);
+        res.status(500).json({ error: { message: `サーバー処理エラー: ${topError.message}` } });
     }
 };
