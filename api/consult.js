@@ -1,4 +1,4 @@
-const { createClient } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Busboy = require('busboy');
 
 /**
@@ -7,7 +7,7 @@ const Busboy = require('busboy');
 const generateId = () => `cons_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 /**
- * マスキングパターンの定義 (インライン化して外部参照トラブルを回避)
+ * マスキングパターンの定義
  */
 const maskPatterns = [
   { regex: /0\d{1,4}[-(]?\d{1,4}[-)]?\d{4}/g, replacement: '[TEL]' },
@@ -30,7 +30,7 @@ function inlineMaskText(text) {
 }
 
 /**
- * AI応答用のスキーマ定義 (@google/genai スタイル)
+ * AI応答用のスキーマ定義 (Structured Output用)
  */
 const responseSchema = {
     type: "object",
@@ -106,36 +106,40 @@ module.exports = async (req, res) => {
         // 3. マスキング実行
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // 4. Gemini SDK (新版 @google/genai) 設定
-        const client = createClient({ apiKey });
-        
-        // parts 配列の作成
+        // 4. Gemini SDK (@google/generative-ai) 設定
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            systemInstruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
+        });
+
+        // 内容の構成
+        const contents = [];
         const parts = [];
         if (fileBuffer) {
             parts.push({
-                inline_data: {
+                inlineData: {
                     data: fileBuffer.toString("base64"),
-                    mime_type: mimeType
+                    mimeType: mimeType
                 }
             });
         }
         parts.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
+        contents.push({ role: 'user', parts });
 
         try {
-            console.log("Calling Gemini 2.0 via modern SDK...");
-            const result = await client.models.generateContent({
-                model: "gemini-2.0-flash", // 最新の高速モデルを使用
-                contents: [{ role: 'user', parts }],
-                config: {
-                    response_mime_type: "application/json",
-                    response_schema: responseSchema,
-                    temperature: 0.2,
-                    system_instruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
+            console.log("Calling Gemini via stable SDK...");
+            const result = await model.generateContent({
+                contents,
+                generationConfig: { 
+                    responseMimeType: "application/json", 
+                    responseSchema, 
+                    temperature: 0.2 
                 }
             });
 
             // 結果のパース
-            const aiText = result.text();
+            const aiText = result.response.text();
             const aiParsed = JSON.parse(aiText);
             
             const finalResponse = {
