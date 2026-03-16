@@ -1,14 +1,8 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 const Busboy = require('busboy');
 
-/**
- * 送信ID生成
- */
 const generateId = () => `cons_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-/**
- * マスキングパターンの定義
- */
 const maskPatterns = [
   { regex: /0\d{1,4}[-(]?\d{1,4}[-)]?\d{4}/g, replacement: '[TEL]' },
   { regex: /[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\./g, replacement: '[EMAIL]' },
@@ -29,9 +23,6 @@ function inlineMaskText(text) {
   return { maskedText, isMasked };
 }
 
-/**
- * AI応答用のスキーマ定義 (Structured Output用)
- */
 const responseSchema = {
     type: "object",
     properties: {
@@ -47,15 +38,10 @@ const responseSchema = {
     required: ["concern_category", "suspected_factors", "action_items", "urgency", "reason", "vet_consult_needed", "vet_consult_message", "optional_questions"]
 };
 
-/**
- * Vercel Serverless Function エントリーポイント
- */
 module.exports = async (req, res) => {
-    // 1. APIキーの確認
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        console.error("CRITICAL: GEMINI_API_KEY is not set.");
-        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。Vercelの環境変数を確認してください。" } });
+        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。" } });
     }
 
     if (req.method !== 'POST') {
@@ -69,7 +55,6 @@ module.exports = async (req, res) => {
         let mimeType = '';
         const filePromises = [];
 
-        // 2. Busboyによるマルチパート解析
         await new Promise((resolve, reject) => {
             busboy.on('file', (name, file, info) => {
                 mimeType = info.mimeType;
@@ -103,43 +88,35 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: { message: '入力内容が空です。' } });
         }
 
-        // 3. マスキング実行
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // 4. Gemini SDK (@google/generative-ai) 設定
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
-            systemInstruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
-        });
+        // SDK initialization as specified by user
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-        // 内容の構成
-        const contents = [];
         const parts = [];
         if (fileBuffer) {
             parts.push({
-                inlineData: {
+                inline_data: {
                     data: fileBuffer.toString("base64"),
-                    mimeType: mimeType
+                    mime_type: mimeType
                 }
             });
         }
         parts.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
-        contents.push({ role: 'user', parts });
 
         try {
-            console.log("Calling Gemini via stable SDK...");
-            const result = await model.generateContent({
-                contents,
-                generationConfig: { 
-                    responseMimeType: "application/json", 
-                    responseSchema, 
-                    temperature: 0.2 
+            const result = await ai.models.generateContent({
+                model: "gemini-2.0-flash",
+                contents: [{ role: 'user', parts }],
+                config: {
+                    response_mime_type: "application/json",
+                    response_schema: responseSchema,
+                    temperature: 0.2,
+                    system_instruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
                 }
             });
 
-            // 結果のパース
-            const aiText = result.response.text();
+            const aiText = result.text();
             const aiParsed = JSON.parse(aiText);
             
             const finalResponse = {
@@ -150,12 +127,11 @@ module.exports = async (req, res) => {
                 ...aiParsed
             };
 
-            console.log("Success:", finalResponse.consultation_id);
             res.status(200).json(finalResponse);
 
         } catch (aiError) {
             console.error("AI Generation Error:", aiError);
-            res.status(500).json({ error: { message: `AI処理中にエラーが発生しました: ${aiError.message}` } });
+            res.status(500).json({ error: { message: `AI処理エラー: ${aiError.message}` } });
         }
 
     } catch (topError) {
