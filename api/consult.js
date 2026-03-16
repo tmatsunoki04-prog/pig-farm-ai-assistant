@@ -1,4 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
+const { createClient } = require('@google/genai');
 const Busboy = require('busboy');
 
 /**
@@ -30,19 +30,19 @@ function inlineMaskText(text) {
 }
 
 /**
- * AI応答用のスキーマ定義
+ * AI応答用のスキーマ定義 (@google/genai スタイル)
  */
 const responseSchema = {
-    type: "OBJECT",
+    type: "object",
     properties: {
-        concern_category: { type: "STRING", description: "内部分類（疾病 / 環境 / 飼料 / 管理 / 繁殖 / 設備 / その他）" },
-        suspected_factors: { type: "ARRAY", items: { type: "STRING" }, description: "内部判断要素" },
-        action_items: { type: "ARRAY", items: { type: "STRING" }, description: "まずやること" },
-        urgency: { type: "STRING", enum: ["high", "medium", "low"], description: "緊急度レベル" },
-        reason: { type: "STRING", description: "理由" },
-        vet_consult_needed: { type: "BOOLEAN" },
-        vet_consult_message: { type: "STRING" },
-        optional_questions: { type: "ARRAY", items: { type: "STRING" } }
+        concern_category: { type: "string", description: "内部分類（疾病 / 環境 / 飼料 / 管理 / 繁殖 / 設備 / その他）" },
+        suspected_factors: { type: "array", items: { type: "string" }, description: "内部判断要素" },
+        action_items: { type: "array", items: { type: "string" }, description: "まずやること" },
+        urgency: { type: "string", enum: ["high", "medium", "low"], description: "緊急度レベル" },
+        reason: { type: "string", description: "理由" },
+        vet_consult_needed: { type: "boolean" },
+        vet_consult_message: { type: "string" },
+        optional_questions: { type: "array", items: { type: "string" } }
     },
     required: ["concern_category", "suspected_factors", "action_items", "urgency", "reason", "vet_consult_needed", "vet_consult_message", "optional_questions"]
 };
@@ -51,7 +51,7 @@ const responseSchema = {
  * Vercel Serverless Function エントリーポイント
  */
 module.exports = async (req, res) => {
-    // 診断用: APIキーの有無を確認
+    // 1. APIキーの確認
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         console.error("CRITICAL: GEMINI_API_KEY is not set.");
@@ -69,7 +69,7 @@ module.exports = async (req, res) => {
         let mimeType = '';
         const filePromises = [];
 
-        // Busboyによるマルチパート解析 (Promise化)
+        // 2. Busboyによるマルチパート解析
         await new Promise((resolve, reject) => {
             busboy.on('file', (name, file, info) => {
                 mimeType = info.mimeType;
@@ -87,8 +87,12 @@ module.exports = async (req, res) => {
                 fields[name] = val;
             });
             busboy.on('finish', async () => {
-                await Promise.all(filePromises);
-                resolve();
+                try {
+                    await Promise.all(filePromises);
+                    resolve();
+                } catch (e) {
+                    reject(e);
+                }
             });
             busboy.on('error', reject);
             req.pipe(busboy);
@@ -99,32 +103,40 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: { message: '入力内容が空です。' } });
         }
 
-        // マスキング実行
+        // 3. マスキング実行
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // Gemini設定
-        const genAI = new GoogleGenAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        const contents = [];
+        // 4. Gemini SDK (新版 @google/genai) 設定
+        const client = createClient({ apiKey });
+        
+        // parts 配列の作成
+        const parts = [];
         if (fileBuffer) {
-            contents.push({ inlineData: { data: fileBuffer.toString("base64"), mimeType: mimeType } });
+            parts.push({
+                inline_data: {
+                    data: fileBuffer.toString("base64"),
+                    mime_type: mimeType
+                }
+            });
         }
-        contents.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
+        parts.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
 
         try {
-            console.log("Gemini API calling...");
-            const result = await model.generateContent({
-                contents,
-                generationConfig: { 
-                    responseMimeType: "application/json", 
-                    responseSchema, 
-                    temperature: 0.2 
-                },
-                systemInstruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
+            console.log("Calling Gemini 2.0 via modern SDK...");
+            const result = await client.models.generateContent({
+                model: "gemini-2.0-flash", // 最新の高速モデルを使用
+                contents: [{ role: 'user', parts }],
+                config: {
+                    response_mime_type: "application/json",
+                    response_schema: responseSchema,
+                    temperature: 0.2,
+                    system_instruction: "あなたは養豚現場の異変を分析するAIです。専門的かつ具体的、かつ簡潔なアドバイスを行ってください。緊急度は high/medium/low で判定してください。"
+                }
             });
 
-            const aiParsed = JSON.parse(result.response.text());
+            // 結果のパース
+            const aiText = result.text();
+            const aiParsed = JSON.parse(aiText);
             
             const finalResponse = {
                 consultation_id: generateId(),
@@ -138,12 +150,12 @@ module.exports = async (req, res) => {
             res.status(200).json(finalResponse);
 
         } catch (aiError) {
-            console.error("AI Error:", aiError);
+            console.error("AI Generation Error:", aiError);
             res.status(500).json({ error: { message: `AI処理中にエラーが発生しました: ${aiError.message}` } });
         }
 
     } catch (topError) {
-        console.error("Critical Server Error:", topError);
+        console.error("Backend Error:", topError);
         res.status(500).json({ error: { message: `サーバー処理エラー: ${topError.message}` } });
     }
 };
