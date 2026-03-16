@@ -1,5 +1,6 @@
 /* 
    PigAI Sophisticated UI (Modern Professional Slate)
+   Standardized Visibility Handling
 */
 :root {
     --clr-bg: #f8fafc;
@@ -26,6 +27,10 @@ body { font-family: 'Noto Sans JP', sans-serif; font-size: var(--text-base); bac
 .logo-title { font-family: 'Inter', sans-serif; font-size: 2rem; font-weight: 700; color: var(--clr-text-primary); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 .logo-title svg { color: var(--clr-accent); }
 .subtitle { font-size: 1.125rem; color: var(--clr-text-secondary); margin-top: 0.5rem; }
+
+/* Visibility Class (Only one global standard) */
+.is-hidden { display: none !important; }
+
 .input-section { background-color: var(--clr-surface); border-radius: var(--radius-xl); border: 1px solid var(--clr-border); padding: 2rem; box-shadow: var(--shadow-lg); }
 .consult-form { display: flex; flex-direction: column; gap: 2.25rem; }
 .section-label { display: block; font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
@@ -34,10 +39,10 @@ body { font-family: 'Noto Sans JP', sans-serif; font-size: var(--text-base); bac
 .category-item.selected { border-color: var(--clr-accent); color: var(--clr-accent); background-color: #f0fdfa; }
 .modern-textarea { width: 100%; min-height: 160px; padding: 1.25rem; border-radius: var(--radius-lg); border: 1.5px solid var(--clr-border); background-color: var(--clr-surface-dim); font-size: 1.125rem; }
 .file-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: #fff; border: 1px solid var(--clr-border); border-radius: var(--radius-md); cursor: pointer; }
-.primary-btn { width: 100%; padding: 1.25rem; background-color: var(--clr-cta); color: #fff; border: none; border-radius: var(--radius-lg); font-size: 1.25rem; font-weight: 700; cursor: pointer; }
-.primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.primary-btn { width: 100%; padding: 1.25rem; background-color: var(--clr-cta); color: #fff; border: none; border-radius: var(--radius-lg); font-size: 1.25rem; font-weight: 700; cursor: pointer; opacity: 1; transition: opacity 0.2s; }
+.primary-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .guideline-box { background: #fffbeb; padding: 1rem; border-radius: var(--radius-md); font-size: 0.875rem; color: #92400e; }
-.is-hidden { display: none !important; }
+
 .result-surface { background: #fff; border-radius: var(--radius-xl); padding: 2rem; border: 1px solid var(--clr-border); box-shadow: var(--shadow-lg); }
 .urgency-badge { display: inline-block; padding: 0.5rem 1rem; border-radius: 99px; font-weight: 700; font-size: 1rem; margin-bottom: 1rem; }
 .urgency-badge.high { background: #fee2e2; color: #b91c1c; }
