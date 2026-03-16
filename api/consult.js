@@ -1,14 +1,8 @@
 const { GoogleGenAI } = require('@google/genai');
 const Busboy = require('busboy');
 
-/**
- * 送信ID生成
- */
 const generateId = () => `cons_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-/**
- * マスキングパターンの定義
- */
 const maskPatterns = [
   { regex: /0\d{1,4}[-(]?\d{1,4}[-)]?\d{4}/g, replacement: '[TEL]' },
   { regex: /[a-zA-Z0-9_\.\+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\./g, replacement: '[EMAIL]' },
@@ -29,9 +23,6 @@ function inlineMaskText(text) {
   return { maskedText, isMasked };
 }
 
-/**
- * AI応答用のスキーマ定義 (@google/genai スタイル)
- */
 const responseSchema = {
     type: "object",
     properties: {
@@ -47,14 +38,10 @@ const responseSchema = {
     required: ["concern_category", "suspected_factors", "action_items", "urgency", "reason", "vet_consult_needed", "vet_consult_message", "optional_questions"]
 };
 
-/**
- * Vercel Serverless Function エントリーポイント
- */
 module.exports = async (req, res) => {
-    // 1. APIキーの確認 (Vercel環境変数)
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。VercelのEnvironment Variablesを確認してください。" } });
+        return res.status(500).json({ error: { message: "GEMINI_API_KEYが設定されていません。" } });
     }
 
     if (req.method !== 'POST') {
@@ -68,7 +55,6 @@ module.exports = async (req, res) => {
         let mimeType = '';
         const filePromises = [];
 
-        // 2. Busboyによるマルチパート解析
         await new Promise((resolve, reject) => {
             busboy.on('file', (name, file, info) => {
                 mimeType = info.mimeType;
@@ -98,14 +84,10 @@ module.exports = async (req, res) => {
         });
 
         const rawInput = fields.text || '';
-        
-        // 3. マスキング実行
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // 4. SDK初期化 (ご指定の書式)
         const ai = new GoogleGenAI({ apiKey: apiKey });
-        
-        // parts 配列の作成
+
         const parts = [];
         if (fileBuffer) {
             parts.push({
@@ -118,9 +100,9 @@ module.exports = async (req, res) => {
         parts.push({ text: `相談内容: ${maskedText || "(テキストなし)"}` });
 
         try {
-            // 5. モデル呼び出し (利用可能な安定モデル: gemini-1.5-flash)
+            // models/ 接頭辞を明示的に付与して 404 回避
             const result = await ai.models.generateContent({
-                model: "gemini-1.5-flash",
+                model: "models/gemini-1.5-flash",
                 contents: [{ role: 'user', parts }],
                 config: {
                     response_mime_type: "application/json",
@@ -130,7 +112,6 @@ module.exports = async (req, res) => {
                 }
             });
 
-            // 6. 結果のパース
             const aiText = result.text();
             const aiParsed = JSON.parse(aiText);
             
