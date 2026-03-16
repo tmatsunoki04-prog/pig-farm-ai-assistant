@@ -2,99 +2,171 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>養豚現場相談AI - MVP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>養豚現場相談AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <header>
-            <h1>養豚現場相談AI</h1>
-            <p class="subtitle">現場の悩みを短く整理します</p>
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 class="logo-title">
+                <!-- Pig SVG Icon -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M19,10c-0.2,0-0.3,0.1-0.5,0.2c0.2-0.5,0.4-1.1,0.5-1.7C19.1,7.2,18.1,6,16.8,6H16c-0.6,0-1.1,0.5-1.1,1c0,0.4,0.2,0.7,0.5,0.9 C14.2,7,12.7,6.5,11,6.5C8,6.5,5.2,8.2,3.9,10.8C3.8,11,3.2,11.2,3,11.3C2.4,11.6,2,12.2,2,12.9v1.6c0,2,1.3,3.7,3.1,4.3 C5,19,5.5,19.2,6,19.6C6.6,20.2,7.3,21,8,21c0.9,0,1.5-0.7,1.8-1.5c0.3-0.8,0.7-1.1,1.2-1.1c0.5,0,0.9,0.3,1.2,1.1 C12.5,20.3,13.1,21,14,21c0.7,0,1.4-0.8,2-1.4c0.5-0.4,1-0.6,1.2-0.8c0.8-0.3,1.5-0.7,2.1-1.3l1.8-1.8L19,10z"/></svg>
+                PigAI
+            </h1>
+            <p class="subtitle">養豚現場の異変をAIに相談</p>
         </header>
 
-        <main>
-            <!-- 入力エリア -->
-            <section class="input-section">
-                <form id="consult-form">
-                    <div class="form-group">
+        <main class="main-content">
+            <!-- 相談入力エリア (Input Section) -->
+            <section class="input-section dark-card">
+                <form id="consult-form" class="consult-form">
+                    
+                    <!-- Categories (Visual-only for now to match the reference image) -->
+                    <div class="category-section">
+                        <label class="section-label">まず何が起きていますか？</label>
+                        <p class="category-title">カテゴリ</p>
+                        <div class="category-grid">
+                            <div class="category-item">
+                                <div class="cat-icon symptoms">🌡️</div>
+                                <span>症状</span>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-icon env">❄️💧</div>
+                                <span>環境変化</span>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-icon appetite">🐷🍱</div>
+                                <span>食い落ち</span>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-icon diarrhea">💩</div>
+                                <span>下痢</span>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-icon cough">🗣️</div>
+                                <span>咳</span>
+                            </div>
+                            <div class="category-item urgent">
+                                <div class="cat-icon death">🚨</div>
+                                <span>死亡増</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-focus-group">
+                        <label for="consult-text" class="section-label">具体的な状況を教えてください</label>
                         <textarea 
                             id="consult-text" 
-                            placeholder="最近下痢が多い、咳が増えた気がする、など気になることを入力してください" 
-                            rows="4"
+                            class="modern-textarea"
+                            placeholder="いつから？どの豚房で？&#10;AIがまず確認すべきことを整理します" 
                         ></textarea>
                     </div>
 
-                    <div class="form-group file-group">
-                        <label for="consult-image" class="file-btn">
-                            <span class="icon">📷</span> 写真を添付 (任意)
-                        </label>
-                        <input type="file" id="consult-image" accept="image/*" style="display: none;">
-                        <span id="file-name" class="file-name"></span>
+                    <div class="actions-row">
+                        <div class="file-attachment-wrapper">
+                            <label for="consult-image" class="file-btn glass-btn">
+                                <span class="icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                        <polyline points="21 15 16 10 5 21"></polyline>
+                                    </svg>
+                                </span>
+                                <span class="btn-text">現場写真を添付</span>
+                            </label>
+                            <input type="file" id="consult-image" accept="image/*" class="is-hidden">
+                            <span id="file-name" class="file-name-display truncate"></span>
+                        </div>
                     </div>
 
-                    <!-- 【プライバシー注意文要件の実装】 -->
-                    <div class="privacy-notice">
-                        <p>⚠️ 農場名や個人名、電話番号などは入力しないでください。</p>
-                        <p>⚠️ 帳票やラベルなど固有情報が写る写真は避けてください。</p>
+                    <!-- Privacy Guidelines (Subtle, elegant) -->
+                    <div class="guideline-box outline-box">
+                        <ul class="guideline-list">
+                            <li>※農場名等は入力しないでください。</li>
+                            <li>※識別子等が写り込む画像は避けてください。</li>
+                        </ul>
                     </div>
 
-                    <button type="submit" id="submit-btn" class="submit-btn" disabled>相談を送信する</button>
+                    <!-- Primary Submit Button -->
+                    <div class="submit-wrapper">
+                        <p class="urgent-warning">※緊急時は直ちに獣医師へご連絡ください。</p>
+                        <button type="submit" id="submit-btn" class="primary-btn" disabled>
+                            <span>相談内容を送信</span>
+                        </button>
+                    </div>
                     
-                    <div class="disclaimer">
-                        ※このアプリは診断用ではありません。詳細判断は獣医師に相談してください。
+                    <div class="disclaimer-text">
+                        ※本サービスは診断を行いません。AIの提案は参考情報です。
                     </div>
                 </form>
             </section>
 
-            <!-- 状態表示エリア（ローディング・エラー） -->
-            <section id="status-area" class="hidden">
-                <div id="loading" class="hidden">
-                    <div class="spinner"></div>
-                    <p>AIが整理しています...</p>
+            <!-- 状態表示エリア（ステータス） -->
+            <section id="status-area" class="is-hidden">
+                <div id="loading" class="loading-state dark-card">
+                    <div class="modern-spinner">
+                        <div></div><div></div><div></div><div></div>
+                    </div>
+                    <p class="loading-text">状況を整理中...</p>
                 </div>
-                <div id="error-message" class="error-box hidden">
-                    <p id="error-text">回答の取得に失敗しました。もう一度お試しください。</p>
-                    <button id="retry-btn">再試行</button>
+                <div id="error-message" class="error-state is-hidden dark-card">
+                    <div class="error-content">
+                        <svg class="error-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <p id="error-text">通信に失敗しました。</p>
+                        <button id="retry-btn" class="outline-btn mt-4">再試行</button>
+                    </div>
                 </div>
             </section>
 
-            <!-- 結果表示エリア -->
-            <section id="result-area" class="hidden">
-                <div class="result-card">
+            <!-- 結果表示エリア (AI Response) -->
+            <section id="result-area" class="is-hidden">
+                <div class="result-surface dark-card">
                     <div class="result-header">
-                        <h2>回答結果</h2>
+                        <h2 class="result-title">AIの確認結果</h2>
                     </div>
 
-                    <!-- 緊急度バッジ -->
-                    <div class="urgency-badge" id="res-urgency"></div>
+                    <div class="result-body">
+                        <!-- 緊急度 & 獣医アラート (Top Bar) -->
+                        <div class="urgency-bar">
+                            <div class="urgency-badge" id="res-urgency"></div>
+                            <div id="res-vet-alert" class="vet-alert is-hidden">
+                                <span id="res-vet-msg"></span>
+                            </div>
+                        </div>
 
-                    <!-- 獣医相談アラート -->
-                    <div id="res-vet-alert" class="vet-alert hidden">
-                        <span class="icon">🚨</span>
-                        <p id="res-vet-msg"></p>
+                        <!-- 結論: まずやること -->
+                        <div class="insight-block primary-insight">
+                            <h3 class="block-title">まず確認すべきこと</h3>
+                            <ul id="res-actions" class="action-list"></ul>
+                        </div>
+
+                        <!-- 理由 -->
+                        <div class="insight-block secondary-insight">
+                            <h3 class="block-title">理由</h3>
+                            <p id="res-reason" class="text-body"></p>
+                        </div>
+
+                        <!-- 追加情報 -->
+                        <details class="modern-details mt-6">
+                            <summary class="details-summary">
+                                <span>追加でわかるとよい情報</span>
+                                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </summary>
+                            <div class="details-content">
+                                <ul id="res-optional" class="optional-list"></ul>
+                            </div>
+                        </details>
                     </div>
-
-                    <!-- まずやること -->
-                    <div class="result-block">
-                        <h3>📌 まずやること</h3>
-                        <ul id="res-actions"></ul>
-                    </div>
-
-                    <!-- 理由 -->
-                    <div class="result-block">
-                        <h3>💡 理由</h3>
-                        <p id="res-reason"></p>
-                    </div>
-
-                    <!-- 追加情報 -->
-                    <details class="optional-info">
-                        <summary>追加で分かれば役立つ情報を見る</summary>
-                        <ul id="res-optional"></ul>
-                    </details>
                     
-                    <!-- 再相談ボタン -->
-                    <button id="reset-btn" class="secondary-btn">別の相談をする</button>
+                    <!-- リセットアクション -->
+                    <div class="result-footer">
+                        <button id="reset-btn" class="secondary-btn w-full">新たに相談する</button>
+                    </div>
                 </div>
             </section>
         </main>
