@@ -6,7 +6,7 @@
     <title>養豚現場相談AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,40 +26,40 @@
             <section class="input-section dark-card">
                 <form id="consult-form" class="consult-form">
                     
-                    <!-- Categories (Visual-only for now to match the reference image) -->
+                    <!-- Categories (Interactive buttons) -->
                     <div class="category-section">
-                        <label class="section-label">まず何が起きていますか？</label>
+                        <label class="section-label">どんな様子ですか？</label>
                         <p class="category-title">カテゴリ</p>
-                        <div class="category-grid">
-                            <div class="category-item">
+                        <div class="category-grid" id="category-grid">
+                            <button type="button" class="category-item" data-category="症状">
                                 <div class="cat-icon symptoms">🌡️</div>
                                 <span>症状</span>
-                            </div>
-                            <div class="category-item">
+                            </button>
+                            <button type="button" class="category-item" data-category="環境変化">
                                 <div class="cat-icon env">❄️💧</div>
                                 <span>環境変化</span>
-                            </div>
-                            <div class="category-item">
+                            </button>
+                            <button type="button" class="category-item" data-category="食い落ち">
                                 <div class="cat-icon appetite">🐷🍱</div>
                                 <span>食い落ち</span>
-                            </div>
-                            <div class="category-item">
+                            </button>
+                            <button type="button" class="category-item" data-category="下痢">
                                 <div class="cat-icon diarrhea">💩</div>
                                 <span>下痢</span>
-                            </div>
-                            <div class="category-item">
+                            </button>
+                            <button type="button" class="category-item" data-category="咳">
                                 <div class="cat-icon cough">🗣️</div>
                                 <span>咳</span>
-                            </div>
-                            <div class="category-item urgent">
+                            </button>
+                            <button type="button" class="category-item urgent" data-category="死亡増">
                                 <div class="cat-icon death">🚨</div>
                                 <span>死亡増</span>
-                            </div>
+                            </button>
                         </div>
                     </div>
 
                     <div class="input-focus-group">
-                        <label for="consult-text" class="section-label">具体的な状況を教えてください</label>
+                        <label for="consult-text" class="section-label">状況を入力してください</label>
                         <textarea 
                             id="consult-text" 
                             class="modern-textarea"
@@ -77,7 +77,7 @@
                                         <polyline points="21 15 16 10 5 21"></polyline>
                                     </svg>
                                 </span>
-                                <span class="btn-text">現場写真を添付</span>
+                                <span class="btn-text">写真を添付</span>
                             </label>
                             <input type="file" id="consult-image" accept="image/*" class="is-hidden">
                             <span id="file-name" class="file-name-display truncate"></span>
@@ -96,7 +96,7 @@
                     <div class="submit-wrapper">
                         <p class="urgent-warning">※緊急時は直ちに獣医師へご連絡ください。</p>
                         <button type="submit" id="submit-btn" class="primary-btn" disabled>
-                            <span>相談内容を送信</span>
+                            <span>AIに相談する</span>
                         </button>
                     </div>
                     

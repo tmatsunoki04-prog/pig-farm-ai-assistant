@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusArea = document.getElementById('status-area');
     const resultArea = document.getElementById('result-area');
     
+    const categoryGrid = document.getElementById('category-grid');
+    
     // Status elements
     const loadingUI = document.getElementById('loading');
     const errorUI = document.getElementById('error-message');
@@ -30,9 +32,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // State
     let currentImageFile = null;
+    let selectedCategories = new Set();
 
     // --- Event Listeners ---
     
+    // Category selection logic
+    if (categoryGrid) {
+        categoryGrid.addEventListener('click', (e) => {
+            const btn = e.target.closest('.category-item');
+            if (!btn) return;
+            
+            const category = btn.dataset.category;
+            if (selectedCategories.has(category)) {
+                selectedCategories.delete(category);
+                btn.classList.remove('selected');
+            } else {
+                selectedCategories.add(category);
+                btn.classList.add('selected');
+            }
+            validateForm();
+        });
+    }
+
     // Text input validation
     textInput.addEventListener('input', validateForm);
 
@@ -61,9 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function validateForm() {
         const textHasValue = textInput.value.trim().length > 0;
         const imageHasValue = currentImageFile !== null;
+        const categoryHasValue = selectedCategories.size > 0;
         
-        // MVP Rule: Valid if text exists OR image exists
-        submitBtn.disabled = !(textHasValue || imageHasValue);
+        // MVP Rule: Valid if text exists OR image exists OR category selected
+        submitBtn.disabled = !(textHasValue || imageHasValue || categoryHasValue);
     }
 
     // Reset flow
@@ -85,9 +107,16 @@ document.addEventListener('DOMContentLoaded', () => {
         errorUI.classList.add('hidden');
         loadingUI.classList.remove('hidden');
 
+        // Construct enriched text from categories and textarea
+        let enrichedText = "";
+        if (selectedCategories.size > 0) {
+            enrichedText += `【カテゴリ: ${Array.from(selectedCategories).join(', ')}】\n`;
+        }
+        enrichedText += textInput.value.trim();
+
         // Prepare FormData
         const formData = new FormData();
-        formData.append('text', textInput.value.trim());
+        formData.append('text', enrichedText);
         if (currentImageFile) {
             formData.append('image', currentImageFile);
         }
@@ -177,6 +206,11 @@ document.addEventListener('DOMContentLoaded', () => {
         form.reset();
         currentImageFile = null;
         fileNameDisplay.textContent = '';
+        
+        // Reset categories
+        selectedCategories.clear();
+        document.querySelectorAll('.category-item').forEach(btn => btn.classList.remove('selected'));
+        
         validateForm();
 
         // Reset UI sections
