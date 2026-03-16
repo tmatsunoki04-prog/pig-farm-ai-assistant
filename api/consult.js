@@ -90,8 +90,7 @@ module.exports = async (req, res) => {
 
         const { maskedText, isMasked } = inlineMaskText(rawInput);
 
-        // SDK initialization as specified by user
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const ai = new GoogleGenAI({ apiKey: apiKey });
 
         const parts = [];
         if (fileBuffer) {
@@ -106,7 +105,7 @@ module.exports = async (req, res) => {
 
         try {
             const result = await ai.models.generateContent({
-                model: "gemini-2.0-flash",
+                model: "gemini-1.5-flash",
                 contents: [{ role: 'user', parts }],
                 config: {
                     response_mime_type: "application/json",
