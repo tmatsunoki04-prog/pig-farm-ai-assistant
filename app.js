@@ -42,7 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 文字入力でバリデーション実行
     textInput.addEventListener('input', validateForm);
+    
+    // 画像選択
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file && file.size <= 5 * 1024 * 1024) {
@@ -57,59 +60,64 @@ document.addEventListener('DOMContentLoaded', () => {
         validateForm();
     });
 
+    /**
+     * バリデーション：文章が1文字でもあれば送信可能。画像やカテゴリは任意。
+     */
     function validateForm() {
         const hasText = textInput.value.trim().length > 0;
         submitBtn.disabled = !hasText || isSubmitting;
     }
 
-    // Reset results and go back to input
+    // 結果表示後のリセット
     resetBtn.addEventListener('click', resetApp);
     
-    // When error occurs, retry leads back to submission
+    // エラー時のリトライ
     retryBtn.addEventListener('click', () => {
         isSubmitting = false;
         validateForm();
         submitConsultation();
     });
 
-    // Explicitly handle button click as a secondary trigger
+    /**
+     * 送信ボタンのクリックハンドラ
+     * disabled でなければ form.requestSubmit() を呼んで submit イベントを発火させる
+     */
     submitBtn.addEventListener('click', (e) => {
-        console.log('Submit button clicked');
         if (!submitBtn.disabled && !isSubmitting) {
-            // requestSubmit triggers HTML5 validation (if any) and the submit event
+            console.log('Submit trigger via requestSubmit');
             if (typeof form.requestSubmit === 'function') {
                 form.requestSubmit();
             } else {
-                // Fallback for older browsers
+                // requestSubmit未対応ブラウザ用フォールバック
                 form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
             }
         }
     });
 
-    // Centralized form submission handler
+    /**
+     * フォームの submit イベントハンドラ (Centralized)
+     */
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        console.log('Form submit event triggered');
-        if (isSubmitting || submitBtn.disabled) {
-            console.log('Submission blocked (isSubmitting or disabled)');
-            return;
-        }
+        if (isSubmitting || submitBtn.disabled) return;
         submitConsultation();
     });
 
+    /**
+     * AI相談送信処理の本体
+     */
     async function submitConsultation() {
         if (isSubmitting) return;
         isSubmitting = true;
-        validateForm(); // Disable button immediately
-        
-        console.log('Starting consultation submission...');
-        
-        inputSection.classList.add('hidden');
-        resultArea.classList.add('hidden');
-        statusArea.classList.remove('hidden');
-        errorUI.classList.add('hidden');
-        loadingUI.classList.remove('hidden');
+        validateForm(); // 即座にボタンを無効化（二重送信防止）
 
+        inputSection.classList.add('is-hidden');
+        resultArea.classList.add('is-hidden');
+        statusArea.classList.remove('is-hidden');
+        errorUI.classList.add('is-hidden');
+        loadingUI.classList.remove('is-hidden');
+
+        // カテゴリ情報をテキストに付加
         let enrichedText = selectedCategories.size > 0 ? `【カテゴリ: ${Array.from(selectedCategories).join(', ')}】\n` : "";
         enrichedText += textInput.value.trim();
 
@@ -123,22 +131,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data.error?.message || `通信エラー (${res.status})`);
             }
-            const data = await res.json();
-            renderResult(data);
+            const resultData = await res.json();
+            renderResult(resultData);
         } catch (error) {
             console.error('API Error:', error);
-            isSubmitting = false;
-            loadingUI.classList.add('hidden');
-            errorUI.classList.remove('hidden');
+            isSubmitting = false; // エラー時はフラグを戻す
+            loadingUI.classList.add('is-hidden');
+            errorUI.classList.remove('is-hidden');
             errorUI.querySelector('p').textContent = error.message;
-            validateForm(); // Re-enable if possible
+            validateForm(); // ボタン状態を再判定
         }
     }
 
+    /**
+     * 結果表示のレンダリング
+     */
     function renderResult(data) {
-        isSubmitting = false; // Submission complete
-        statusArea.classList.add('hidden');
-        resultArea.classList.remove('hidden');
+        isSubmitting = false; // 送信完了
+        statusArea.classList.add('is-hidden');
+        resultArea.classList.remove('is-hidden');
 
         const map = {
             'high': { label: 'すぐ獣医師相談', class: 'high' },
@@ -149,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resUrgency.textContent = config.label;
         resUrgency.className = `urgency-badge ${config.class}`;
 
-        resVetAlert.classList.toggle('hidden', !data.vet_consult_needed);
+        resVetAlert.classList.toggle('is-hidden', !data.vet_consult_needed);
         resVetMsg.textContent = data.vet_consult_message || '';
         resActions.innerHTML = (data.action_items || []).map(i => `<li>${i}</li>`).join('');
         resReason.textContent = data.reason || '特になし';
@@ -158,17 +169,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window.scrollTo(0, 0);
     }
 
+    /**
+     * アプリケーション状態の完全リセット
+     */
     function resetApp() {
-        console.log('Resetting application state');
         isSubmitting = false;
         form.reset();
         currentImageFile = null;
         fileNameDisplay.textContent = '';
         selectedCategories.clear();
         document.querySelectorAll('.category-item').forEach(b => b.classList.remove('selected'));
-        resultArea.classList.add('hidden');
-        statusArea.classList.add('hidden');
-        inputSection.classList.remove('hidden');
+        resultArea.classList.add('is-hidden');
+        statusArea.classList.add('is-hidden');
+        inputSection.classList.remove('is-hidden');
         validateForm();
         window.scrollTo(0, 0);
     }
