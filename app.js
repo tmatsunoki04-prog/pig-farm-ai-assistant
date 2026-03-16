@@ -22,10 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // API URL - Vercel route
     const API_URL = '/api/consult';
 
+    // State
     let currentImageFile = null;
     let selectedCategories = new Set();
+    let isSubmitting = false;
 
     if (categoryGrid) {
+        // ... (省略されるが既存ロジック維持)
         categoryGrid.addEventListener('click', (e) => {
             const btn = e.target.closest('.category-item');
             if (!btn) return;
@@ -57,18 +60,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function validateForm() {
         // 送信条件：文章入力が1文字でもあれば有効（カテゴリ・画像は任意）
-        submitBtn.disabled = textInput.value.trim().length === 0;
+        const hasText = textInput.value.trim().length > 0;
+        submitBtn.disabled = !hasText || isSubmitting;
     }
 
     resetBtn.addEventListener('click', resetApp);
     retryBtn.addEventListener('click', submitConsultation);
+
+    // Button click handling (explicitly trigger form submit)
+    submitBtn.addEventListener('click', (e) => {
+        if (!submitBtn.disabled && !isSubmitting) {
+            form.requestSubmit();
+        }
+    });
+
+    // Form Submission (Centralized handling)
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (submitBtn.disabled) return;
+        if (isSubmitting || submitBtn.disabled) return;
         submitConsultation();
     });
 
     async function submitConsultation() {
+        if (isSubmitting) return;
+        isSubmitting = true;
+        validateForm(); // Disable button
         inputSection.classList.add('hidden');
         resultArea.classList.add('hidden');
         statusArea.classList.remove('hidden');
@@ -119,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetApp() {
+        isSubmitting = false;
         form.reset();
         currentImageFile = null;
         fileNameDisplay.textContent = '';
