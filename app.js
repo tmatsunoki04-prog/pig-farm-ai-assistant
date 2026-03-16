@@ -56,8 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function validateForm() {
-        // MVP: Validation requires text or image
-        submitBtn.disabled = !(textInput.value.trim().length > 0 || currentImageFile !== null);
+        // 送信条件：文章入力が1文字でもあれば有効（カテゴリ・画像は任意）
+        submitBtn.disabled = textInput.value.trim().length === 0;
     }
 
     resetBtn.addEventListener('click', resetApp);
